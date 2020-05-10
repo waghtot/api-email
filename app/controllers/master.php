@@ -16,83 +16,86 @@ class Master extends Controller
 
 
             $data = $this->getRequest();
-
+            error_log('show data: '.print_r($data, 1));
             if(isset($data->action))
             {
                 $response = false;
                 switch($data->action)
                 {
-                    case 'Login';
-                        if($this->verifyData()!==false)
-                        {
-                            return $this->logUser();
-                        }else{
-                            $response = false;
+                    case 'Register';
+
+                        $res = ApiModel::getEmailTemplate($data);
+                        if($res->code !== '6000'){
+                            $response = new stdClass();
+                            $response->code = '6016';
+                            $response->message = 'Missconfiguration';
+                            echo json_decode($response);
+                            die;
                         }
+                        $email = $this->prepareDataForEmail($res->html, $data);
+                        $resp = $this->sendEmail($email);
+                        echo json_encode($resp);
+
+                    break;
+                    case 'Reset Password';
+                        error_log('reset password data: '.print_r($data, 1));
+                        $res = ApiModel::getEmailTemplate($data);
+                        if($res->code !== '6000'){
+                            $response = new stdClass();
+                            $response->code = '6016';
+                            $response->message = 'Missconfiguration';
+                            echo json_decode($response);
+                            die;
+                        }
+                        $email = $this->prepareDataForEmail($res->html, $data);
+                        $resp = $this->sendEmail($email);
+                        echo json_encode($resp);
                     break;
                 }
-                echo json_encode($response);
             }
 
         }
 
     }
 
-    private function verifyData()
+    private function sendEmail($input)
     {
-        $data = new stdClass();
-        $data->api = 'verify';
-        $data->action = 'Login';
-        $data->params = $this->getRequest()->params;
-        $res = json_decode(API_model::doAPI($data));
 
-        foreach($res as $key=>$value)
-        {
-            if(empty($value)){
-                return false;
-            }
-        }
+        // $to      = $input->userEmail;
+        // $subject = $input->action;
+        // $message = $input->template;
+        // $headers = 'From: ' . $input->projectEmail . "\r\n" .
+        //     'Reply-To: '. $input->projectEmail  . "\r\n" .
+        //     'X-Mailer: PHP/' . phpversion();
+    
+        // mail($to, $subject, $message, $headers);
+    
+        $res = array();
+        $res['code'] = '6000';
+        $res['message'] = 'Success';
+        $res['html'] = $input->template;
 
-        return true;
-        
-    }
-
-    private function logUser()
-    {
-        $data = new stdClass();
-        $data->api = 'database';
-        $data->connection = $this->getRequest()->connection;
-        $data->procedure = $this->getRequest()->procedure;
-        $data->params = $this->getRequest()->params;
-
-        $res = json_decode(API_model::doAPI($data));
-        $resObj = $res[0];
-
-        if($resObj->code !== '6000'){
-            echo json_encode($resObj);
-            die;
-        }
-
-        if($resObj->UserStatus !== '3'){
-            echo json_encode($resObj);
-            die;
-        }
-
-        $res = $this->createToken($resObj);
-        $res->UserID = $resObj->UserID;
-        echo json_encode($res);
-        die;
-    }
-
-    private function createToken($input)
-    {
-        error_log('prepare data to token response here: '.print_r($input, 1));         
-        $data = new stdClass();
-        $data->api = 'token';
-        $data->action = 'Create';
-        $data->UserId = $input->UserID;
-        $data->projectId = $this->getRequest()->params->projectId;
-        $res = json_decode(API_model::doAPI($data));
         return $res;
     }
+
+    private function prepareDataForEmail($template, $input)
+    {
+
+        $dataForEmail = ApiModel::getDataForEmail($input);
+
+        $template = str_replace('{projectUrl}', $dataForEmail->ProjectUrl, $template);
+        $template = str_replace('{token}', $dataForEmail->Token, $template);
+
+        $data = new stdClass();
+        $data->action = $input->action;
+        $data->userEmail = $dataForEmail->UserEmail;
+        $data->token = $dataForEmail->Token;
+        $data->template = $template;
+        $data->projectUrl = $dataForEmail->ProjectUrl;
+        $data->projectEmail = $dataForEmail->ProjectEmail;
+
+        return $data;
+
+    }
+
 }
