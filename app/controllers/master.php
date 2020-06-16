@@ -61,19 +61,18 @@ class Master extends Controller
     private function sendEmail($input)
     {
 
-        // $to      = $input->userEmail;
-        // $subject = $input->action;
-        // $message = $input->template;
-        // $headers = 'From: ' . $input->projectEmail . "\r\n" .
-        //     'Reply-To: '. $input->projectEmail  . "\r\n" .
-        //     'X-Mailer: PHP/' . phpversion();
+        $to      = $input->userEmail;
+        $subject = $input->action;
+        $message = $input->template;
+        $headers = 'From: ' . $input->projectEmail . "\r\n" .
+            'Reply-To: '. $input->projectEmail  . "\r\n" .
+            'X-Mailer: PHP/' . phpversion();
     
-        // mail($to, $subject, $message, $headers);
+        mail($to, $subject, $message, $headers);
     
         $res = array();
         $res['code'] = '6000';
         $res['message'] = 'Success';
-        $res['html'] = $input->template;
 
         return $res;
     }
